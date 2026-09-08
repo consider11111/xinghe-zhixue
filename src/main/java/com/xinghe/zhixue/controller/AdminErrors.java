@@ -6,7 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-@RestControllerAdvice(assignableTypes = {AdminController.class, AuthController.class})
+@RestControllerAdvice(assignableTypes = {AdminController.class, AuthController.class, TrainingController.class})
 public class AdminErrors {
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<?> status(ResponseStatusException e) {

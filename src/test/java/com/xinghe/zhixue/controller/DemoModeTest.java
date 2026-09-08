@@ -22,7 +22,7 @@ class DemoModeTest {
         assertEquals(3, db.queryForObject("SELECT COUNT(*) FROM sys_user", Integer.class));
         http.perform(get("/api/auth/config")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.demoMode").value(true))
-                .andExpect(jsonPath("$.registrationEnabled").value(false));
+                .andExpect(jsonPath("$.registrationEnabled").value(true));
         for (String role : new String[]{"student", "teacher", "admin"}) {
             http.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                     .content("{\"username\":\"" + role + "\",\"password\":\"123456\"}"))
@@ -47,7 +47,7 @@ class DemoModeTest {
         }
         http.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"newstudent\",\"password\":\"123456\",\"role\":\"student\"}"))
-                .andExpect(status().isForbidden()).andExpect(jsonPath("$.message").exists());
+                .andExpect(status().isOk()).andExpect(jsonPath("$.registered").value(false)).andExpect(jsonPath("$.message").exists());
         http.perform(post("/api/admin/users").header("X-Auth-Token", token).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"newteacher\",\"displayName\":\"Teacher\",\"role\":\"teacher\",\"enabled\":true,\"password\":\"123456\"}"))
                 .andExpect(status().isForbidden());

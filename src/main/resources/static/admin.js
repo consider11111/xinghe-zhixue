@@ -54,9 +54,24 @@
       <label class="admin-checkbox"><input type="checkbox" name="enabled" ${!user||enabled(user.enabled)?'checked':''} ${self?'disabled':''}>启用账号</label>`, async form=>{
         const body={username:form.get('username'),displayName:form.get('displayName'),role:self?'admin':form.get('role'),enabled:self?true:form.has('enabled'),password:form.get('password')};
         await request('/users'+(user?'/'+user.id:''),user?'PUT':'POST',body);
-        if(self) { currentUser.displayName=body.displayName; document.querySelector('#userMenu span').textContent=body.displayName+' · 管理端'; }
+        if(self) { currentUser.displayName=body.displayName; document.querySelector('#userMenu span').textContent=body.displayName; }
         notify(user?'账号权限已更新':'账号已创建'); await load();
       });
+  }
+
+  function deleteUser(user) {
+    dialog('删除账号', `<p>确定删除 ${escape(user.username)}（${escape(user.display_name)}）？删除后该账号将不能登录。</p>`,async()=>{
+      await request('/users/'+user.id,'DELETE');notify('账号已删除');await load();
+    },'确认删除');
+  }
+
+  async function assignClasses(user) {
+    try {
+      const [classes,assigned]=await Promise.all([fetch('/api/auth/classes').then(r=>{if(!r.ok)throw new Error('无法读取班级');return r.json();}),request('/users/'+user.id+'/classes')]);
+      dialog('设置班级归属',`<p>${escape(user.display_name)} · 学生最多1个班级，教师最多2个班级</p>${classes.map(c=>`<label class="admin-checkbox"><input type="checkbox" name="classIds" value="${c.id}" ${assigned.some(a=>a.id===c.id)?'checked':''}>${escape(c.name)}</label>`).join('')||'<p>请先在基础数据中添加班级。</p>'}`,async form=>{
+        await request('/users/'+user.id+'/classes','PUT',{classIds:form.getAll('classIds').map(Number)});notify('班级归属已更新');
+      });
+    } catch(e){notify(e.message);}
   }
 
   function resetPassword(user) {
@@ -99,9 +114,11 @@
   function accountRows() {
     const filtered=state.users.filter(u=>(!state.role||u.role===state.role)&&(!state.status||Number(enabled(u.enabled))===Number(state.status))&&`${u.username} ${u.display_name}`.toLowerCase().includes(state.query.toLowerCase()));
     const pages=Math.max(1,Math.ceil(filtered.length/8));state.page=Math.min(state.page,pages);
-    document.querySelector('#accountTable').innerHTML=`<div class="admin-table-wrap"><table><thead><tr><th>账号 / 姓名</th><th>身份</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>${filtered.slice((state.page-1)*8,state.page*8).map(u=>`<tr><td><b>${escape(u.username)}</b><small>${escape(u.display_name)}${Number(u.id)===Number(currentUser.id)?' · 当前账号':''}</small></td><td>${roleBadge(u.role)}</td><td>${badge(u.enabled)}</td><td>${date(u.created_at)}</td><td class="admin-actions"><button data-edit-user="${u.id}">编辑权限</button><button data-reset="${u.id}">重置密码</button></td></tr>`).join('')||empty('暂无符合条件的账号',5)}</tbody></table></div><div class="admin-pagination"><span>共 ${filtered.length} 个账号</span><button id="previousPage" ${state.page===1?'disabled':''} aria-label="上一页">←</button><span>${state.page} / ${pages}</span><button id="nextPage" ${state.page===pages?'disabled':''} aria-label="下一页">→</button></div>`;
+    document.querySelector('#accountTable').innerHTML=`<div class="admin-table-wrap"><table><thead><tr><th>账号 / 姓名</th><th>身份</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>${filtered.slice((state.page-1)*8,state.page*8).map(u=>`<tr><td><b>${escape(u.username)}</b><small>${escape(u.display_name)}${Number(u.id)===Number(currentUser.id)?' · 当前账号':''}</small></td><td>${roleBadge(u.role)}</td><td>${badge(u.enabled)}</td><td>${date(u.created_at)}</td><td class="admin-actions"><button data-edit-user="${u.id}">编辑权限</button><button data-reset="${u.id}">重置密码</button>${u.role!=='admin'?'<button data-classes="'+u.id+'">设置班级</button>':''}<button data-delete-user="${u.id}" ${Number(u.id)===Number(currentUser.id)?'disabled':''}>删除账号</button></td></tr>`).join('')||empty('暂无符合条件的账号',5)}</tbody></table></div><div class="admin-pagination"><span>共 ${filtered.length} 个账号</span><button id="previousPage" ${state.page===1?'disabled':''} aria-label="上一页">←</button><span>${state.page} / ${pages}</span><button id="nextPage" ${state.page===pages?'disabled':''} aria-label="下一页">→</button></div>`;
     document.querySelectorAll('[data-edit-user]').forEach(b=>b.onclick=()=>editUser(state.users.find(u=>u.id==b.dataset.editUser)));
     document.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>resetPassword(state.users.find(u=>u.id==b.dataset.reset)));
+    document.querySelectorAll('[data-delete-user]').forEach(b=>b.onclick=()=>deleteUser(state.users.find(u=>u.id==b.dataset.deleteUser)));
+    document.querySelectorAll('[data-classes]').forEach(b=>b.onclick=()=>assignClasses(state.users.find(u=>u.id==b.dataset.classes)));
     document.querySelector('#previousPage').onclick=()=>{state.page--;accountRows();};
     document.querySelector('#nextPage').onclick=()=>{state.page++;accountRows();};
   }

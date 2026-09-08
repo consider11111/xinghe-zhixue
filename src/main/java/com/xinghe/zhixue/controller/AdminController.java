@@ -25,7 +25,7 @@ public class AdminController {
     @GetMapping("/users")
     public List<Map<String, Object>> users(@RequestHeader(value="X-Auth-Token", required=false) String token) {
         auth.requireAdmin(token);
-        return db.queryForList("SELECT id,username,display_name,role,enabled,created_at FROM sys_user ORDER BY id DESC");
+        return db.queryForList("SELECT id,username,display_name,role,enabled,created_at FROM sys_user WHERE enabled>=0 ORDER BY id DESC");
     }
 
     @PostMapping("/users")
@@ -65,6 +65,25 @@ public class AdminController {
         ensureProfile(id, input.role());
         log(actor, "更新账号权限", old.get("username").toString());
         return Map.of("message", "账号已更新");
+    }
+
+    @DeleteMapping("/users/{id}")
+    @Transactional
+    public Map<String,String> deleteUser(@RequestHeader(value="X-Auth-Token",required=false) String token,
+                                         @PathVariable long id) {
+        long actor = auth.requireAdmin(token);
+        if (actor == id) throw conflict("不能删除当前登录的管理员账号");
+        List<Map<String,Object>> admins = db.queryForList("SELECT id FROM sys_user WHERE role='admin' AND enabled=1 FOR UPDATE");
+        Map<String,Object> target = user(id);
+        if (admins.size()==1 && ((Number)admins.get(0).get("id")).longValue()==id)
+            throw conflict("至少保留一名启用的管理员");
+        // Retain the identity for audit history and prevent startup seeds from restoring deleted accounts.
+        db.update("UPDATE sys_user SET enabled=-1 WHERE id=?", id);
+        db.update("DELETE FROM user_class WHERE user_id=?", id);
+        db.update("DELETE FROM training_progress WHERE user_id=?", id);
+        log(actor, "删除账号", target.get("username").toString());
+        auth.invalidate(id);
+        return Map.of("message", "账号已删除，原登录状态已失效");
     }
 
     @PutMapping("/users/{id}/password")
@@ -157,7 +176,7 @@ public class AdminController {
     }
 
     private Map<String,Object> user(long id) {
-        List<Map<String,Object>> rows = db.queryForList("SELECT id,username FROM sys_user WHERE id=?", id);
+        List<Map<String,Object>> rows = db.queryForList("SELECT id,username,role FROM sys_user WHERE id=? AND enabled>=0", id);
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"账号不存在");
         return rows.get(0);
     }

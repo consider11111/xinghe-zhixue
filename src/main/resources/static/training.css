@@ -1,0 +1,12 @@
+.training-content { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.9; margin: 18px 0; }
+.training-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
+.training-controls select { padding: 9px; border: 1px solid #dce4ef; border-radius: 8px; background: white; }
+.training-empty { padding: 24px; color: #60738e; }
+.role-mask .report-modal { max-height: 88vh; overflow-y: auto; }
+.role-mask [data-plans] .library-card { margin: 12px 0; }
+.training .library-card { min-width: 0; }
+#teacherTrainingHost .library-card > small { margin-top: 0; }
+.library-card > .training-content { display: block; }
+#teacherTrainingHost .library-card > .training-controls { margin-top: auto; justify-content: flex-start; }
+#reloadTraining { border: 1px solid #dce4ef; border-radius: 8px; padding: 9px 16px; background: white; color: #3b5879; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .55; }

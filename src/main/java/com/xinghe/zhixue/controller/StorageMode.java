@@ -1,6 +1,6 @@
 package com.xinghe.zhixue.controller;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
@@ -9,8 +9,8 @@ import org.springframework.web.server.ResponseStatusException;
 public class StorageMode {
     private final boolean demo;
 
-    public StorageMode(@Value("${spring.datasource.url}") String url) {
-        demo = url.startsWith("jdbc:h2:mem:");
+    public StorageMode(HikariDataSource source) {
+        demo = source.getJdbcUrl().startsWith("jdbc:h2:mem:");
     }
 
     public boolean isDemo() { return demo; }

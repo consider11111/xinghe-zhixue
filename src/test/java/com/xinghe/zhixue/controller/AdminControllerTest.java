@@ -68,6 +68,18 @@ class AdminControllerTest {
         assertEquals(409,ex.getStatusCode().value());
     }
 
+    @Test void deletionRevokesLoginAndCannotBeUndoneThroughAccountEditing() {
+        long id=((Number)admin.createUser(token,new AdminController.UserInput("delete_"+UUID.randomUUID(),"Delete Me","student",true,"Test123456")).get("id")).longValue();
+        String username=db.queryForObject("SELECT username FROM sys_user WHERE id=?",String.class,id);
+        String session=auth.login(new AuthController.LoginRequest(username,"Test123456")).get("token").toString();
+        admin.deleteUser(token,id);
+        assertTrue(admin.users(token).stream().noneMatch(u->((Number)u.get("id")).longValue()==id));
+        assertThrows(ResponseStatusException.class,()->auth.me(session));
+        assertThrows(ResponseStatusException.class,()->auth.login(new AuthController.LoginRequest(username,"Test123456")));
+        assertThrows(ResponseStatusException.class,()->admin.updateUser(token,id,new AdminController.UserInput(username,"Restored","student",true,null)));
+        assertThrows(ResponseStatusException.class,()->admin.deleteUser(token,actor));
+    }
+
     @Test void baseDataCanBeCreatedAndUpdated() {
         String code="QA_"+UUID.randomUUID().toString().replace("-","");
         admin.createData(token,new AdminController.BaseInput("class",code,"QA Class","Test",true));
