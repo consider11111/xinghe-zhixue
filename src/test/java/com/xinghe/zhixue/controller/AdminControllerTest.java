@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:./target/admin-tests;MODE=MySQL;DATABASE_TO_LOWER=TRUE")
 @AutoConfigureMockMvc
 @Transactional
 class AdminControllerTest {
@@ -38,7 +38,7 @@ class AdminControllerTest {
             http.perform(get("/api/admin"+path)).andExpect(status().isUnauthorized());
         }
         String student="qa_"+UUID.randomUUID().toString().replace("-","");
-        Map<String,Object> registered=auth.register(new AuthController.RegisterRequest(student,"Test123456","admin","QA Student"));
+        Map<String,Object> registered=auth.register(new AuthController.RegisterRequest(student,"Test123456","admin","QA Student",java.util.List.of()));
         assertEquals("student",((Map<?,?>)registered.get("user")).get("role"));
         String studentToken=registered.get("token").toString();
         for(String path:new String[]{"/users","/base-data","/operations","/audit"}) {

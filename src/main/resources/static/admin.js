@@ -82,9 +82,9 @@
 
   function accounts() {
     const counts=key=>state.users.filter(u=>u.role===key).length;
-    return stats([['账号总数',state.users.length,'全平台账号'],['管理员',counts('admin'),'系统管理权限'],['教师',counts('teacher'),'教学工作台'],['学生',counts('student'),'个人学习空间']])+`
+    return (state.demoMode?'<p class="admin-policy">体验模式：仅提供三个初始账号，修改内容重启后恢复；连接数据库后可新增账号。</p>':'')+stats([['账号总数',state.users.length,'全平台账号'],['管理员',counts('admin'),'系统管理权限'],['教师',counts('teacher'),'教学工作台'],['学生',counts('student'),'个人学习空间']])+`
       <div class="admin-tabs" role="tablist"><button role="tab" aria-selected="${state.tab==='users'}" data-tab="users">账号管理</button><button role="tab" aria-selected="${state.tab==='roles'}" data-tab="roles">角色权限</button></div>
-      ${state.tab==='roles'?permissions():`<div class="admin-toolbar"><input type="search" id="adminSearch" aria-label="搜索账号或姓名" placeholder="搜索账号或姓名" value="${escape(state.query)}"><select id="adminRole" aria-label="筛选身份"><option value="">全部身份</option>${Object.entries(roles).map(([key,name])=>`<option value="${key}" ${key===state.role?'selected':''}>${name}</option>`).join('')}</select><select id="adminStatus" aria-label="筛选状态"><option value="">全部状态</option><option value="1" ${state.status==='1'?'selected':''}>启用</option><option value="0" ${state.status==='0'?'selected':''}>停用</option></select><button class="admin-primary" id="newUser">新增账号</button></div><div id="accountTable"></div>`}`;
+      ${state.tab==='roles'?permissions():`<div class="admin-toolbar"><input type="search" id="adminSearch" aria-label="搜索账号或姓名" placeholder="搜索账号或姓名" value="${escape(state.query)}"><select id="adminRole" aria-label="筛选身份"><option value="">全部身份</option>${Object.entries(roles).map(([key,name])=>`<option value="${key}" ${key===state.role?'selected':''}>${name}</option>`).join('')}</select><select id="adminStatus" aria-label="筛选状态"><option value="">全部状态</option><option value="1" ${state.status==='1'?'selected':''}>启用</option><option value="0" ${state.status==='0'?'selected':''}>停用</option></select><button class="admin-primary" id="newUser" ${state.demoMode?'disabled title="连接数据库后可新增账号"':''}>新增账号</button></div><div id="accountTable"></div>`}`;
   }
 
   function permissions() {
@@ -114,7 +114,7 @@
 
   function operations() {
     const s=state.operations, minutes=Math.floor(s.uptimeSeconds/60), heap=Math.min(100,Math.round(s.heapUsedMb/s.heapMaxMb*100));
-    return stats([['应用服务','运行中','已连接当前服务'],['数据库',s.database?'连接正常':'连接异常',s.databaseMs+' ms'],['本次运行',Math.floor(minutes/60)+'时 '+minutes%60+'分','自服务启动以来'],['内存占用',s.heapUsedMb+' MB','上限 '+s.heapMaxMb+' MB']])+`
+    return stats([['应用服务','运行中','已连接当前服务'],['数据存储',s.demoMode?'内存体验模式':(s.database?'数据库连接正常':'数据库连接异常'),s.demoMode?'重启后恢复初始数据':s.databaseMs+' ms'],['本次运行',Math.floor(minutes/60)+'时 '+minutes%60+'分','自服务启动以来'],['内存占用',s.heapUsedMb+' MB','上限 '+s.heapMaxMb+' MB']])+`
       <section class="admin-health"><div><h2>运行检查</h2><span>检查时间：${date(s.checkedAt)}</span></div><dl><div><dt>应用连接</dt><dd class="permission-yes">正常</dd></div><div><dt>数据库查询</dt><dd>${s.database?'正常':'异常'}</dd></div><div><dt>Java 版本</dt><dd>${escape(s.javaVersion)}</dd></div><div><dt>可用处理器</dt><dd>${s.processors} 核</dd></div><div><dt>内存使用率</dt><dd><progress value="${heap}" max="100"></progress> ${heap}%</dd></div></dl></section>
       <div class="admin-toolbar"><h2>管理操作日志 <small>最近 200 条</small></h2><button id="exportAudit" ${state.audit.length?'':'disabled'}>导出日志</button></div><div class="admin-table-wrap"><table><thead><tr><th>时间</th><th>操作人</th><th>操作</th><th>对象</th><th>结果</th></tr></thead><tbody>${state.audit.map(x=>`<tr><td>${date(x.created_at)}</td><td>${escape(x.username)}</td><td>${escape(x.action)}</td><td>${escape(x.target)}</td><td><span class="admin-status is-on">成功</span></td></tr>`).join('')||empty('暂无管理操作记录',5)}</tbody></table></div>`;
   }
@@ -146,7 +146,7 @@
     const id=++requestId, view=state.view;
     const content=document.querySelector('#adminContent');content.innerHTML='<p class="admin-loading" role="status">正在加载管理数据…</p>';
     try {
-      if(view==='accounts'){const users=await request('/users');if(id!==requestId)return;state.users=users;}
+      if(view==='accounts'){const [users,config]=await Promise.all([request('/users'),fetch('/api/auth/config').then(r=>{if(!r.ok)throw new Error('无法读取运行模式');return r.json();})]);if(id!==requestId)return;state.users=users;state.demoMode=config.demoMode;}
       if(view==='base'){const data=await request('/base-data');if(id!==requestId)return;state.data=data;}
       if(view==='operations'){
         const [status,audit]=await Promise.all([request('/operations'),request('/audit')]);

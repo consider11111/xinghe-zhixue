@@ -16,10 +16,11 @@ import org.springframework.web.server.ResponseStatusException;
 public class AdminController {
     private final JdbcTemplate db;
     private final AuthController auth;
+    private final StorageMode storage;
     private static final Set<String> ROLES = Set.of("student", "teacher", "admin");
     private static final Set<String> KINDS = Set.of("class", "subject", "term");
 
-    public AdminController(JdbcTemplate db, AuthController auth) { this.db = db; this.auth = auth; }
+    public AdminController(JdbcTemplate db, AuthController auth, StorageMode storage) { this.db = db; this.auth = auth; this.storage = storage; }
 
     @GetMapping("/users")
     public List<Map<String, Object>> users(@RequestHeader(value="X-Auth-Token", required=false) String token) {
@@ -33,6 +34,7 @@ public class AdminController {
                                          @RequestBody UserInput input) {
         long actor = auth.requireAdmin(token);
         validateUser(input);
+        storage.requireAccountCreation();
         String username = required(input.username(), 50, "账号");
         password(input.password());
         try {
@@ -140,7 +142,7 @@ public class AdminController {
         catch (DataAccessException e) { database = false; }
         Runtime runtime = Runtime.getRuntime();
         return Map.of("checkedAt", OffsetDateTime.now().toString(), "database", database,
-                "databaseMs", (System.nanoTime()-start)/1_000_000, "uptimeSeconds",
+                "demoMode", storage.isDemo(), "databaseMs", (System.nanoTime()-start)/1_000_000, "uptimeSeconds",
                 ManagementFactory.getRuntimeMXBean().getUptime()/1000,
                 "heapUsedMb", (runtime.totalMemory()-runtime.freeMemory())/1024/1024,
                 "heapMaxMb", runtime.maxMemory()/1024/1024,
